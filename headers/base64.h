@@ -3,7 +3,7 @@
 const uchar base64_map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 
-uchar* base64_decrypt(const char* cipher)
+uchar* base64_decrypt(const uchar* cipher)
 {
     uint sLen = strlen(cipher), j = 0;
     
@@ -27,7 +27,7 @@ uchar* base64_decrypt(const char* cipher)
     return result;
 }
  
-uchar* base64_encrypt(const char* source)
+uchar* base64_encrypt(const uchar* source)
 {
     const uint sLen = strlen(source);
     uint j = 3 - (sLen - 1) % 3;
@@ -43,7 +43,6 @@ uchar* base64_encrypt(const char* source)
         result[j] = base64_map[offset + (source[i] >> b)];
         offset = source[i] << 8 - b;
         offset >>= 2;
-
         if (i + 1 == sLen || b == 6)
         {
             result[++j] = base64_map[offset];
