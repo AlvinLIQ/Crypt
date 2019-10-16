@@ -6,11 +6,11 @@ const uchar base64_map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 uchar* base64_decrypt(const uchar* cipher)
 {
     uint sLen = strlen(cipher), j = 0;
-    
+    while(cipher[--sLen] == '=');
     schar offset = 0;
     uchar* result = (uchar*)malloc (sLen * 3 / 4), sIndex;
     result[0] = 0;
-    for (uint i = 0; i < sLen && cipher[i] != '='; i++)
+    for (uint i = 0; i <= sLen; i++)
     {            
         sIndex = tellmewhere (base64_map, cipher[i], 64);
         result[j] += offset < 2 ? sIndex << 2 - offset : sIndex >> offset - 2;

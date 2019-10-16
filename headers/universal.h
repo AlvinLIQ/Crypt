@@ -8,8 +8,6 @@
 
 uint tellmewhere (const uchar* str, const uchar chr, uint sLen)
 {
-    while (--sLen >= 0)
-        if (chr == str[sLen])
-            break;
+    while (sLen && chr != str[--sLen]);
     return sLen;
 }
