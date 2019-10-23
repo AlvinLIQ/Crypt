@@ -1,4 +1,41 @@
-#include "universal.h"
+#include "base64.h"
+
+int gcd_pro(int a, int b, int* x, int* y)
+{
+    //ax + by == gcd(a, b)
+    if(b)
+    {
+        int result = gcd_pro(b, a % b, x, y);
+        int tmp = x;
+        *x = *y;
+        *y = tmp - a / b * *y;
+        
+        return result;
+    }
+    
+    *x = 1;
+    *y = 0;
+    return a;
+}
+
+void gcd_ptr(int* a, int* b)
+{
+    if (*b)
+    {
+        int tmp = *a;
+        *a = *b;
+        *b = tmp % *b;
+        
+        gcd(a, b);
+    }
+}
+
+int gcd(int a, int b)
+{
+    gcd_ptr(&a, &b);
+    return a;
+}
+
 
 const uchar FSB[256] = {
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5,
@@ -67,9 +104,57 @@ const uchar RSB[256] = {
     0xC8, 0xEB, 0xBB, 0x3C, 0x83, 0x53, 0x99, 0x61,
     0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26,
     0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D};
-
-uchar* aes128_encrypt (const uchar *source, const uchar *pwd)
+            
+void ShiftRows(uchar* result, const uchar* source, uint sLen, uint size)
 {
-    uchar* result = NULL;
+    uint endRow = sLen / size, i = 0;
+    for (uint j; i < endRow; i++, result += size, source += size)
+        for (j = 0; j < size; j++)
+            result[j] = FSB(source[(j + i) % size]);
+    
+    i = 0;
+    while (!source[i++])
+        result[i] = source[i];
+
+    result[i] = 0;
+}
+
+const uint mCol[] = {2, 3, 1, 1};
+
+void MixColumns(uchar* result)
+{
+    for (int i = 0, j; i < 4; i++, result += 4)
+        for (j = 0; j < 4; j++)
+            result[j] = mCol[(j + i) % 4];
+}
+
+void AddRoundKey(uchar* key, uint kLen)
+{
+    uchar tmp = *key, *end = key + kLen - 1;
+    while(key++ < end)
+        *key = *(key + 1);
+    
+    *key = tmp;
+}
+
+uchar* aes128_encrypt(const uchar* source, const uchar* pwd)
+{
+    uint sLen = strlen(source), rLen = sLen + (16 - sLen % 16) % 16;
+    uchar* cypher = (uchar*)malloc(rLen), tKey;
+    for (uint i = 0, j; i <= rLen; i += 128)
+    {
+        AddRoundKey(tKey = pwd, 4);
+        for (j = 0; j < 9; j++)
+        {
+            ShiftRows(cypher + i, source + i, sLen, 4);
+            MixColumns(cypher + i);
+            AddRoundKey(tKey += 4, 4);
+        }
+        ShiftRows(cypher + i, source + i, sLen, 4);
+        AddRoundKey(tKey + 4, 4);
+    }
+    
+    uchar* result = base64_encrypt(cypher);
+    free(cypher);
     return result;
 }

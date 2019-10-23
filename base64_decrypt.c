@@ -17,7 +17,7 @@ uchar tellmewhere (uchar s)
     return i;
 }
 
-int main (int argc, char **argv)
+int main (int argc, uchar **argv)
 {
     if (argc != 2)
     {

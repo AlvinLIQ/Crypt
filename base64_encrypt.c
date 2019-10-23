@@ -4,9 +4,9 @@
 #define sdn argv[1]
 #define uchar unsigned char
 
-const char cip[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const uchar cip[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-int main (int argc, char **argv)
+int main (int argc, uchar **argv)
 {
     if (argc != 2)
     {
