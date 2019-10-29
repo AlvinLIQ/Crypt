@@ -1,10 +1,12 @@
-#include "base64.h"
+#include "aes.h"
 
 #include <stdio.h>
 
 int main(int argc, uchar** argv)
 {
-	uchar* result = base64_encrypt(argv[1]);
-	printf ("%s\n%s\n", result, base64_decrypt(result));
+    if (argc < 2)
+        return -1;
+        
+	printf("%s\n", aes128_encrypt(argv[1], "asd"));
 	return 0;
 }
