@@ -117,7 +117,7 @@ void ShiftRows(uchar* result)
 		{
 			tmp = result[i << 2];
 			for (k = 0; k < 3; k++)
-				result[(i << 2) + k] = FSB[result[(i << 2) + (k + i) % 4]];
+				result[(i << 2) + k] = FSB[result[(i << 2) + k + 1]];
 			result[(i << 2) + k] = FSB[tmp];
 		}
 	}
@@ -145,11 +145,10 @@ void MixColumns(uchar* result)
 {
 	uchar src[16] = "";
 	strncpy(src, result, 16);
-	for (int i = 0, j, t; i < 4; i++)
+	for (int i = 0, j; i < 4; i++)
 		for (j = 0; j < 4; j++)
 		{
-			t = (i << 2) + j;
-			result[t] = 
+			result[(i << 2) + j] = 
 				xMul(src[j], mCol[(j + i) % 4]) ^
 				xMul(src[j + 4], mCol[(j + i + 1) % 4]) ^
 				xMul(src[j + 8], mCol[(j + i + 2) % 4]) ^
@@ -167,21 +166,19 @@ void AddRoundKey(uchar* srcChar, uchar* key, uint kLen)
 uchar* aes128_encrypt(const uchar* src, const uchar* pwd)
 {
 	uint sLen = strlen(src), rLen = sLen + ((16 - sLen % 16) % 16);
-	uchar* cypher = (uchar*)malloc(rLen), *source = (uchar*)malloc(rLen), key[16], *tKey;
+	uchar* cypher = (uchar*)malloc(rLen), *source = (uchar*)malloc(rLen), key[16];
 	memset(cypher, 0, rLen);
 	memset(source, 0, rLen);
 	memset(key, 0, 16);
 	strncpy(cypher, src, sLen);
-	strncpy(source, src, sLen);
 	strncpy(key, pwd, strlen(pwd));
-	uchar* tCypher = cypher, *tSource = source;
-	for (uint i = 0, j; i < rLen; i += 16, tCypher += 16, tSource += 16)
+	uchar* tCypher = cypher, *end = cypher + rLen;
+	for (uint j; tCypher < end; tCypher += 16)
 	{
 		AddRoundKey(tCypher, key, 16);
 		for (j = 0; j < 8; j++)
 		{
 			ShiftRows(tCypher);
-		//	SubBytes(tCypher);
 			MixColumns(tCypher);
 			AddRoundKey(tCypher, key, 16);
 		}
