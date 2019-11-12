@@ -105,13 +105,23 @@ const uchar RSB[256] = {
 	0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26,
 	0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D};
 			
-void ShiftRows(uchar* result, const uchar* source, uint size)
+void ShiftRows(uchar* result)
 {
-	for (uint j, i = 0; i < size; i++)
-		for (j = 0; j < size; j++)
-			result[(i << 4) + j] = FSB[source[(i << 4) + (j + i) % 4]];
-
-	result[size * size] = 0;
+	uchar tmp;
+	uint i, j, k;
+	for (i = 0; i < 4; i++)
+		result[i] = FSB[result[i]];
+	for (i = 0; i < 4; ++i)
+	{
+		for (j = 0; j < i; ++j)
+		{
+			tmp = result[i << 2];
+			for (k = 0; k < 3; k++)
+				result[(i << 2) + k] = FSB[result[(i << 2) + (k + i) % 4]];
+			result[(i << 2) + k] = FSB[tmp];
+		}
+	}
+	result[16] = 0;
 }
 
 const uchar mCol[] = {2, 3, 1, 1};
@@ -124,7 +134,7 @@ uchar xMul(uchar srcChar, uchar target)
 		result = srcChar << 1; 
 		if (result & 0x80)
 			result ^= 0x1b;
-		if (result & 1)
+		if (target & 1)
 			result ^= srcChar;
 	}
 
@@ -133,16 +143,17 @@ uchar xMul(uchar srcChar, uchar target)
 
 void MixColumns(uchar* result)
 {
-	uchar *op = result, src[16] = "";
+	uchar src[16] = "";
 	strncpy(src, result, 16);
-	for (int i = 0, j; i < 4; i++)
+	for (int i = 0, j, t; i < 4; i++)
 		for (j = 0; j < 4; j++)
 		{
-			result[(i << 2) + j] = 
-				xMul(src[i], mCol[(j + i) % 4]) ^
-				xMul(src[i + 4], mCol[(j + i + 1) % 4]) ^
-				xMul(src[i + 8], mCol[(j + i + 2) % 4]) ^
-				xMul(src[i + 16], mCol[(j + i + 3) % 4]);
+			t = (i << 2) + j;
+			result[t] = 
+				xMul(src[j], mCol[(j + i) % 4]) ^
+				xMul(src[j + 4], mCol[(j + i + 1) % 4]) ^
+				xMul(src[j + 8], mCol[(j + i + 2) % 4]) ^
+				xMul(src[j + 12], mCol[(j + i + 3) % 4]);
 		}
 }
 
@@ -157,19 +168,25 @@ uchar* aes128_encrypt(const uchar* src, const uchar* pwd)
 {
 	uint sLen = strlen(src), rLen = sLen + ((16 - sLen % 16) % 16);
 	uchar* cypher = (uchar*)malloc(rLen), *source = (uchar*)malloc(rLen), key[16], *tKey;
+	memset(cypher, 0, rLen);
+	memset(source, 0, rLen);
+	memset(key, 0, 16);
+	strncpy(cypher, src, sLen);
 	strncpy(source, src, sLen);
 	strncpy(key, pwd, strlen(pwd));
-	for (uint i = 0, j; i < rLen; i += 16)
+	uchar* tCypher = cypher, *tSource = source;
+	for (uint i = 0, j; i < rLen; i += 16, tCypher += 16, tSource += 16)
 	{
-		AddRoundKey(cypher + i,tKey = key, 4);
-		for (j = 1; j < 8; j++)
+		AddRoundKey(tCypher, key, 16);
+		for (j = 0; j < 8; j++)
 		{
-			ShiftRows(cypher + i, source + i, 4);
-			MixColumns(cypher + i);
-			AddRoundKey(cypher + i, tKey + (j * 4) % 16, 4);
+			ShiftRows(tCypher);
+		//	SubBytes(tCypher);
+			MixColumns(tCypher);
+			AddRoundKey(tCypher, key, 16);
 		}
-		ShiftRows(cypher + i, source + i, 4);
-		AddRoundKey(cypher + i, tKey + (j * 4) % 16 + 4, 4);
+		ShiftRows(tCypher);
+		AddRoundKey(cypher, key, 16);
 	}
 	free(source);
 	uchar* result = base64_encrypt(cypher);
