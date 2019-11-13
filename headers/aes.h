@@ -104,88 +104,107 @@ const uchar RSB[256] = {
 	0xC8, 0xEB, 0xBB, 0x3C, 0x83, 0x53, 0x99, 0x61,
 	0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26,
 	0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D};
+
+void MoveLeft(uchar* target)
+{
+	uchar tmp = target[0];
+	for (int i = 0; i < 3; i++)
+		target[i] = target[i + 1];
+	target[3] = tmp;
+}
 			
 void ShiftRows(uchar* result)
 {
 	uchar tmp;
 	uint i, j, k;
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 16; i++)
+	{
 		result[i] = FSB[result[i]];
+	}
 	for (i = 0; i < 4; ++i)
 	{
 		for (j = 0; j < i; ++j)
 		{
-			tmp = result[i << 2];
-			for (k = 0; k < 3; k++)
-				result[(i << 2) + k] = FSB[result[(i << 2) + k + 1]];
-			result[(i << 2) + k] = FSB[tmp];
+			MoveLeft(result + (i << 2));
 		}
 	}
 	result[16] = 0;
 }
 
-const uchar mCol[] = {2, 3, 1, 1};
+//const uchar mCol[] = {2, 3, 1, 1};
 
-uchar xMul(uchar srcChar, uchar target)
+uchar xMul(uchar srcChar)
 {
-	uchar result;
-	if (target & 2)
-	{
-		result = srcChar << 1; 
-		if (result & 0x80)
-			result ^= 0x1b;
-		if (target & 1)
-			result ^= srcChar;
-	}
+	srcChar <<= 1; 
+	if (srcChar & 0x80)
+		srcChar ^= 0x1b;
 
-	return result;
+	return srcChar;
 }
 
 void MixColumns(uchar* result)
 {
-	uchar src[16] = "";
-	strncpy(src, result, 16);
-	for (int i = 0, j; i < 4; i++)
+	uchar tmp[4];
+	for (int i = 0, j, t; i < 4; i++)
+	{
+		tmp[0] = result[i];
+		tmp[1] = result[i + 4];
+		tmp[2] = result[i + 8];
+		tmp[3] = result[i + 12];
 		for (j = 0; j < 4; j++)
 		{
-			result[(i << 2) + j] = 
-				xMul(src[j], mCol[(j + i) % 4]) ^
-				xMul(src[j + 4], mCol[(j + i + 1) % 4]) ^
-				xMul(src[j + 8], mCol[(j + i + 2) % 4]) ^
-				xMul(src[j + 12], mCol[(j + i + 3) % 4]);
+			t = (j << 2) + i;
+			result[t] = 
+				xMul(tmp[j]) ^
+				xMul(tmp[(j + 1) % 4]) ^ tmp[(j + 1) % 4] ^
+				tmp[(j + 2) % 4]^
+				tmp[(j + 3) % 4];
 		}
+	}
 }
 
-void AddRoundKey(uchar* srcChar, uchar* key, uint kLen)
+void SetKey(uchar* key)
 {
-	uint i = 0;
-	while(i++ < kLen)
+	uchar* end = key + 160;
+	for (; key < end; key += 16)
+	{
+		MoveLeft(key + 12);
+		for (int i = 0; i < 16; i++)
+		{
+			key[16 + i] = FSB[key[i]] ^ FSB[key[12 + i]];
+		}
+	}
+}
+
+void AddRoundKey(uchar* srcChar, uchar* key)
+{
+	for (int i = 0; i < 16; i++)
 		srcChar[i] ^= key[i];
 }
 
 uchar* aes128_encrypt(const uchar* src, const uchar* pwd)
 {
 	uint sLen = strlen(src), rLen = sLen + ((16 - sLen % 16) % 16);
-	uchar* cypher = (uchar*)malloc(rLen), *source = (uchar*)malloc(rLen), key[16];
+	uchar* cypher = (uchar*)malloc(rLen), key[176];
 	memset(cypher, 0, rLen);
-	memset(source, 0, rLen);
 	memset(key, 0, 16);
 	strncpy(cypher, src, sLen);
 	strncpy(key, pwd, strlen(pwd));
-	uchar* tCypher = cypher, *end = cypher + rLen;
+	uchar* tCypher = cypher, *end = cypher + rLen, *tKey;
+	SetKey(key);
 	for (uint j; tCypher < end; tCypher += 16)
 	{
-		AddRoundKey(tCypher, key, 16);
+		tKey = &key[16];
+		AddRoundKey(tCypher, tKey);
 		for (j = 0; j < 8; j++)
 		{
 			ShiftRows(tCypher);
 			MixColumns(tCypher);
-			AddRoundKey(tCypher, key, 16);
+			AddRoundKey(tCypher, tKey += 16);
 		}
 		ShiftRows(tCypher);
-		AddRoundKey(cypher, key, 16);
+		AddRoundKey(tCypher, tKey += 16);
 	}
-	free(source);
 	uchar* result = base64_encrypt(cypher);
 	free(cypher);
 	return result;
