@@ -165,11 +165,12 @@ void MixColumns(uchar* result)
 
 void SetKey(uchar* key)
 {
-	uchar* end = key + 160;
-	for (; key < end; key += 16)
+	uchar* end = key + 176;
+
+	for (int i; key < end; key += 16)
 	{
 		MoveLeft(key + 12);
-		for (int i = 0; i < 16; i++)
+		for (i = 0; i < 16; i++)
 		{
 			key[16 + i] = FSB[key[i]] ^ FSB[key[12 + i]];
 		}
@@ -185,7 +186,7 @@ void AddRoundKey(uchar* srcChar, uchar* key)
 uchar* aes128_encrypt(const uchar* src, const uchar* pwd)
 {
 	uint sLen = strlen(src), rLen = sLen + ((16 - sLen % 16) % 16);
-	uchar* cypher = (uchar*)malloc(rLen), key[176];
+	uchar* cypher = (uchar*)malloc(rLen), key[192];
 	memset(cypher, 0, rLen);
 	memset(key, 0, 16);
 	strncpy(cypher, src, sLen);
