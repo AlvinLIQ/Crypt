@@ -208,5 +208,6 @@ uchar* aes128_encrypt(const uchar* src, const uchar* pwd)
 	}
 	uchar* result = base64_encrypt(cypher);
 	free(cypher);
+	cypher = NULL;
 	return result;
 }
